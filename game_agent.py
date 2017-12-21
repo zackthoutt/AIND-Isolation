@@ -112,6 +112,8 @@ class IsolationPlayer:
         positive value large enough to allow the function to return before the
         timer expires.
     """
+    NO_LEGAL_MOVES = (-1, -1)
+
     def __init__(self, search_depth=3, score_fn=custom_score, timeout=10.):
         self.search_depth = search_depth
         self.score = score_fn
@@ -170,6 +172,71 @@ class MinimaxPlayer(IsolationPlayer):
         # Return the best move from the last completed search iteration
         return best_move
 
+    def find_min_score(self, game, depth):
+        """ Find the move for the current game state that minimizes the score.
+
+            Args:
+                - game (obj): An Isolation game instance
+                - depth (int): How many steps from the root of the search tree we are
+
+            Returns:
+                - min_score (float): the minimum score the player can achieve for the current game state
+        """
+        if self.time_left() < self.TIMER_THRESHOLD:
+            raise SearchTimeout()
+
+        legal_moves = game.get_legal_moves()
+        if self.stop_move_search(legal_moves, depth):
+            return self.score(game, self)
+
+        min_score = float("inf")
+        for move in legal_moves:
+            forecast = game.forecast_move(move)
+            min_score = min(min_score, self.find_max_score(forecast, depth - 1))
+        return min_score
+
+    def find_max_score(self, game, depth):
+        """ Find the move for the current game state that maxmimizes the score.
+
+            Args:
+                - game (obj): An Isolation game instance
+                - depth (int): How many steps from the root of the search tree we are
+
+            Returns:
+                - max_score (float): the max score the player can achieve for the current game state
+        """
+        if self.time_left() < self.TIMER_THRESHOLD:
+            raise SearchTimeout()
+
+        legal_moves = game.get_legal_moves()
+        if self.stop_move_search(legal_moves, depth):
+            return self.score(game, self)
+
+        max_score = float("-inf")
+        for move in legal_moves:
+            forecast = game.forecast_move(move)
+            max_score = max(max_score, self.find_min_score(forecast, depth - 1))
+        return max_score
+
+    @staticmethod
+    def stop_move_search(legal_moves, depth):
+        """ Determine if move search should be stopped.
+
+            Move search should be stopped if we are at the end of the move tree or if we have reached
+            our max search depth.
+
+            Args:
+                - legal_moves (list): List of two-element tuples describing the board space the player
+                    could move to and occupy.
+                - depth (int): How many more steps down the move tree we are going to take.
+
+            Returns:
+                - stop_move_search (boolean): Whether or not to stop the move search
+        """
+        if len(legal_moves) != 0 and depth > 0:
+            return False
+        return True
+
     def minimax(self, game, depth):
         """Implement depth-limited minimax search algorithm as described in
         the lectures.
@@ -212,8 +279,14 @@ class MinimaxPlayer(IsolationPlayer):
         if self.time_left() < self.TIMER_THRESHOLD:
             raise SearchTimeout()
 
-        # TODO: finish this function!
-        raise NotImplementedError
+        legal_moves = game.get_legal_moves()
+
+        if not legal_moves:
+            return self.NO_LEGAL_MOVES
+
+        move_scores = [(self.find_min_score(game.forecast_move(move), depth - 1), move) for move in legal_moves]
+        score, move = max(move_scores)
+        return move
 
 
 class AlphaBetaPlayer(IsolationPlayer):
