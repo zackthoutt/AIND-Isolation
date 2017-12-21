@@ -3,7 +3,7 @@ test your agent's strength against a set of known agents using tournament.py
 and include the results in your report.
 """
 import random
-
+from abc import ABC, abstractmethod
 
 class SearchTimeout(Exception):
     """Subclass base exception for code clarity. """
@@ -90,7 +90,7 @@ def custom_score_3(game, player):
     raise NotImplementedError
 
 
-class IsolationPlayer:
+class IsolationPlayer(ABC):
     """Base class for minimax and alphabeta agents -- this class is never
     constructed or tested directly.
 
@@ -119,6 +119,36 @@ class IsolationPlayer:
         self.score = score_fn
         self.time_left = None
         self.TIMER_THRESHOLD = timeout
+        self.search_strategy = None
+
+    @staticmethod
+    def stop_move_search(legal_moves, depth):
+        """ Determine if move search should be stopped.
+
+            Move search should be stopped if we are at the end of the move tree or if we have reached
+            our max search depth.
+
+            Args:
+                - legal_moves (list): List of two-element tuples describing the board space the player
+                    could move to and occupy.
+                - depth (int): How many more steps down the move tree we are going to take.
+
+            Returns:
+                - stop_move_search (boolean): Whether or not to stop the move search
+        """
+        if len(legal_moves) != 0 and depth > 0:
+            return False
+        return True
+
+    @abstractmethod
+    def find_min_score(self):
+        """Find the minimum score for a level of the game tree based on the current game state."""
+        pass
+
+    @abstractmethod
+    def find_max_score(self):
+        """Find the max score for a level of the game tree based on the current game state."""
+        pass
 
 
 class MinimaxPlayer(IsolationPlayer):
@@ -218,25 +248,6 @@ class MinimaxPlayer(IsolationPlayer):
             max_score = max(max_score, self.find_min_score(forecast, depth - 1))
         return max_score
 
-    @staticmethod
-    def stop_move_search(legal_moves, depth):
-        """ Determine if move search should be stopped.
-
-            Move search should be stopped if we are at the end of the move tree or if we have reached
-            our max search depth.
-
-            Args:
-                - legal_moves (list): List of two-element tuples describing the board space the player
-                    could move to and occupy.
-                - depth (int): How many more steps down the move tree we are going to take.
-
-            Returns:
-                - stop_move_search (boolean): Whether or not to stop the move search
-        """
-        if len(legal_moves) != 0 and depth > 0:
-            return False
-        return True
-
     def minimax(self, game, depth):
         """Implement depth-limited minimax search algorithm as described in
         the lectures.
@@ -327,8 +338,78 @@ class AlphaBetaPlayer(IsolationPlayer):
         """
         self.time_left = time_left
 
-        # TODO: finish this function!
-        raise NotImplementedError
+        best_move = self.NO_LEGAL_MOVES
+
+        # Look deeper until running out of time
+        depth = 1
+        try:
+            while True:
+                best_move = self.alphabeta(game, depth)
+                depth += 1
+        except SearchTimeout:
+            pass
+
+        return best_move
+
+    def find_min_score(self, game, depth, alpha=None, beta=None):
+        """ Find the move for the current game state that minimizes the score.
+
+            Args:
+                - game (obj): An Isolation game instance
+                - depth (int): How many steps from the root of the search tree we are
+                - alpha (float): The lower bound for searching moves to minimize score
+                - beta (float): The upper boud for searching moves to maximize score
+
+            Returns:
+                - min_score (float): the minimum score the player can achieve for the current game state
+        """
+        if self.time_left() < self.TIMER_THRESHOLD:
+            raise SearchTimeout()
+
+        legal_moves = game.get_legal_moves()
+        if self.stop_move_search(legal_moves, depth):
+            return (self.score(game, self), self.NO_LEGAL_MOVES)
+
+        min_score = float("inf")
+        for move in legal_moves:
+            forecast = self.find_max_score(game.forecast_move(move), depth - 1, alpha, beta)
+            if forecast[0] < min_score:
+                min_score, mocked_move = forecast
+                best_move = move
+            if min_score <= alpha:
+                return (min_score, best_move)
+            beta = min(beta, min_score)
+        return (min_score, best_move)
+
+    def find_max_score(self, game, depth, alpha=None, beta=None):
+        """ Find the move for the current game state that maxmimizes the score.
+
+            Args:
+                - game (obj): An Isolation game instance
+                - depth (int): How many steps from the root of the search tree we are
+                - alpha (float): The lower bound for searching moves to minimize score
+                - beta (float): The upper boud for searching moves to maximize score
+
+            Returns:
+                - max_score (float): the max score the player can achieve for the current game state
+        """
+        if self.time_left() < self.TIMER_THRESHOLD:
+            raise SearchTimeout()
+
+        legal_moves = game.get_legal_moves()
+        if self.stop_move_search(legal_moves, depth):
+            return (self.score(game, self), self.NO_LEGAL_MOVES)
+
+        max_score = float("-inf")
+        for move in legal_moves:
+            forecast = self.find_min_score(game.forecast_move(move), depth - 1, alpha, beta)
+            if forecast[0] > max_score:
+                max_score, mocked_move = result
+                best_move = move
+            if max_score >= beta:
+                return (max_score, best_move)
+            alpha = max(alpha, max_score)
+        return max_score
 
     def alphabeta(self, game, depth, alpha=float("-inf"), beta=float("inf")):
         """Implement depth-limited minimax search with alpha-beta pruning as
@@ -378,5 +459,5 @@ class AlphaBetaPlayer(IsolationPlayer):
         if self.time_left() < self.TIMER_THRESHOLD:
             raise SearchTimeout()
 
-        # TODO: finish this function!
-        raise NotImplementedError
+        score, move = self.find_max_score(game, depth, alpha, beta)
+        return move
