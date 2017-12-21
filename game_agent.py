@@ -399,11 +399,22 @@ class AlphaBetaPlayer(IsolationPlayer):
 
         best_move = self.NO_LEGAL_MOVES
 
+        # choose a random move instead of giving up if the search times out
+        legal_moves = game.get_legal_moves(self)
+        if len(legal_moves) > 0:
+            best_move = legal_moves[random.randint(0, len(legal_moves)-1)]
+        else:
+            best_move = self.NO_LEGAL_MOVES
+
         # Look deeper until running out of time
         depth = 1
         try:
             while True:
-                best_move = self.alphabeta(game, depth)
+                move = self.alphabeta(game, depth)
+                if move == self.NO_LEGAL_MOVES:
+                    return best_move
+                else:
+                    best_move = move
                 depth += 1
         except SearchTimeout:
             pass
