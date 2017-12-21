@@ -3,7 +3,6 @@ test your agent's strength against a set of known agents using tournament.py
 and include the results in your report.
 """
 import random
-from abc import ABC, abstractmethod
 
 class SearchTimeout(Exception):
     """Subclass base exception for code clarity. """
@@ -63,7 +62,7 @@ def custom_score(game, player):
     width, height = game.width / 2., game.height / 2.
     player_y, player_x = game.get_player_location(player)
 
-    distance_to_center = float(max(abs(height - player_y), abs(width - player_x)) / game.move_count)
+    distance_to_center = float(max(abs(height - player_y), abs(width - player_x)))
 
     # Increase aggression towards end game
     aggression = 1.0
@@ -160,7 +159,7 @@ def custom_score_3(game, player):
     return player_moves - opponent_moves - distance_to_center
 
 
-class IsolationPlayer(ABC):
+class IsolationPlayer():
     """Base class for minimax and alphabeta agents -- this class is never
     constructed or tested directly.
 
@@ -209,16 +208,6 @@ class IsolationPlayer(ABC):
         if len(legal_moves) != 0 and depth > 0:
             return False
         return True
-
-    @abstractmethod
-    def find_min_score(self):
-        """Find the minimum score for a level of the game tree based on the current game state."""
-        pass
-
-    @abstractmethod
-    def find_max_score(self):
-        """Find the max score for a level of the game tree based on the current game state."""
-        pass
 
 
 class MinimaxPlayer(IsolationPlayer):
