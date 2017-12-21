@@ -10,6 +10,15 @@ class SearchTimeout(Exception):
     pass
 
 
+def get_percent_game_complete(game):
+    """ What percentage of the game has already been played
+
+        Args:
+            - game (obj): And instance of an Isolation game board
+    """
+    return float(len(game.get_blank_spaces())) / (game.width * game.height)
+
+
 def custom_score(game, player):
     """Calculate the heuristic value of a game state from the point of view
     of the given player.
@@ -34,8 +43,39 @@ def custom_score(game, player):
     float
         The heuristic value of the current game state to the specified player.
     """
-    # TODO: finish this function!
-    raise NotImplementedError
+    if game.is_winner(player):
+        return float('inf')
+    if game.is_loser(player):
+        return float('-inf')
+
+    player_moves = game.get_legal_moves(player)
+    opponent_moves = game.get_legal_moves(game.get_opponent(player))
+
+    # Check if there is one stealable move
+    cutthroat_bonus = 0.
+    if len(set(player_moves).intersection(opponent_moves)) == 1:
+      if game.active_player == player:
+          cutthroat_bonus += 1.
+      else:
+          cutthroat_bonus -= 1.
+
+    # Control the center, decrease importance as game progresses
+    width, height = game.width / 2., game.height / 2.
+    player_y, player_x = game.get_player_location(player)
+
+    distance_to_center = float(max(abs(height - player_y), abs(width - player_x)) / game.move_count)
+
+    # Increase aggression towards end game
+    aggression = 1.0
+    percent_over = float(len(game.get_blank_spaces())) / (game.width * game.height)
+    if percent_over <= 0.5:
+        aggression = 1.15
+    elif percent_over <= 0.25:
+        aggression = 1.25
+    elif percent_over <= 0.10:
+        aggression = 1.5
+
+    return len(player_moves) - (aggression * (len(opponent_moves) - distance_to_center + cutthroat_bonus))
 
 
 def custom_score_2(game, player):
@@ -60,8 +100,25 @@ def custom_score_2(game, player):
     float
         The heuristic value of the current game state to the specified player.
     """
-    # TODO: finish this function!
-    raise NotImplementedError
+    if game.is_winner(player):
+        return float('inf')
+    if game.is_loser(player):
+        return float('-inf')
+
+    player_moves = len(game.get_legal_moves(player))
+    opponent_moves = len(game.get_legal_moves(game.get_opponent(player)))
+
+    # increase aggression towards end game
+    aggression = 1.0
+    percent_over = float(len(game.get_blank_spaces())) / (game.width * game.height)
+    if percent_over <= 0.5:
+        aggression = 1.15
+    elif percent_over <= 0.25:
+        aggression = 1.25
+    elif percent_over <= 0.10:
+        aggression = 1.5
+
+    return player_moves - (aggression * opponent_moves)
 
 
 def custom_score_3(game, player):
@@ -86,8 +143,21 @@ def custom_score_3(game, player):
     float
         The heuristic value of the current game state to the specified player.
     """
-    # TODO: finish this function!
-    raise NotImplementedError
+    if game.is_winner(player):
+        return float('inf')
+    if game.is_loser(player):
+        return float('-inf')
+
+    player_moves = len(game.get_legal_moves(player))
+    opponent_moves = len(game.get_legal_moves(game.get_opponent(player)))
+
+    # Control the center
+    width, height = game.width / 2., game.height / 2.
+    player_y, player_x = game.get_player_location(player)
+
+    distance_to_center = float(max(abs(height - player_y), abs(width - player_x)))
+
+    return player_moves - opponent_moves - distance_to_center
 
 
 class IsolationPlayer(ABC):
@@ -370,6 +440,8 @@ class AlphaBetaPlayer(IsolationPlayer):
         if self.stop_move_search(legal_moves, depth):
             return (self.score(game, self), self.NO_LEGAL_MOVES)
 
+        best_move = self.NO_LEGAL_MOVES
+
         min_score = float("inf")
         for move in legal_moves:
             forecast = self.find_max_score(game.forecast_move(move), depth - 1, alpha, beta)
@@ -400,16 +472,18 @@ class AlphaBetaPlayer(IsolationPlayer):
         if self.stop_move_search(legal_moves, depth):
             return (self.score(game, self), self.NO_LEGAL_MOVES)
 
+        best_move = self.NO_LEGAL_MOVES
+
         max_score = float("-inf")
         for move in legal_moves:
             forecast = self.find_min_score(game.forecast_move(move), depth - 1, alpha, beta)
             if forecast[0] > max_score:
-                max_score, mocked_move = result
+                max_score, mocked_move = forecast
                 best_move = move
             if max_score >= beta:
                 return (max_score, best_move)
             alpha = max(alpha, max_score)
-        return max_score
+        return (max_score, best_move)
 
     def alphabeta(self, game, depth, alpha=float("-inf"), beta=float("inf")):
         """Implement depth-limited minimax search with alpha-beta pruning as
