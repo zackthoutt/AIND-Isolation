@@ -62,7 +62,7 @@ def custom_score(game, player):
     width, height = game.width / 2., game.height / 2.
     player_y, player_x = game.get_player_location(player)
 
-    distance_to_center = float(max(abs(height - player_y), abs(width - player_x)))
+    distance_to_center = float(max(abs(height - player_y), abs(width - player_x))/game.move_count)
 
     # Increase aggression towards end game
     aggression = 1.0
@@ -402,7 +402,8 @@ class AlphaBetaPlayer(IsolationPlayer):
         # choose a random move instead of giving up if the search times out
         legal_moves = game.get_legal_moves(self)
         if len(legal_moves) > 0:
-            best_move = legal_moves[random.randint(0, len(legal_moves)-1)]
+            width, height = game.width / 2., game.height / 2.
+            distance, best_move = min([(max(abs(height - move[0]), abs(width - move[1])), move) for move in legal_moves])
         else:
             best_move = self.NO_LEGAL_MOVES
 
